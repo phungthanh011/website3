@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useMemo, startTransition, useDeferredValue, useEffect } from "react"
-import { X, Printer, FileText, Download, Calendar, Building2, ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import { X, Printer, FileText, Download, Calendar, Building2, ZoomIn, ZoomOut } from "lucide-react"
 import type { PrintConfig, CompanyInfo, PrintLanguage } from "@/types/modal"
 
 interface PrintModalProps {
@@ -33,8 +33,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
   const [zoomLevel, setZoomLevel] = useState(100)
   const [displayedItems, setDisplayedItems] = useState(50)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait")
-  const [pageSize, setPageSize] = useState<"A4" | "A3">("A4")
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait')
 
   // Use deferred value for better performance
   const deferredData = useDeferredValue(data)
@@ -60,64 +59,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
       ),
     [selectedLanguage.code],
   )
-
-  // Calculate optimal items per page based on orientation and data size
-  const optimalItemsPerPage = useMemo(() => {
-    const columnCount = Object.keys(config.columns).length
-    
-    // Tính toán dựa trên chiều cao trang và số cột
-    let baseItemsPerPage
-    
-    if (orientation === "landscape") {
-      // Ngang: ít dòng hơn do chiều cao ngắn, nhưng có thể chứa nhiều cột
-      if (columnCount <= 4) {
-        baseItemsPerPage = 18 // Tăng số dòng cho ít cột
-      } else if (columnCount <= 6) {
-        baseItemsPerPage = 15
-      } else if (columnCount <= 8) {
-        baseItemsPerPage = 12
-      } else {
-        baseItemsPerPage = 10 // Giảm mạnh cho nhiều cột
-      }
-    } else {
-      // Dọc: nhiều dòng hơn do chiều cao dài
-      if (columnCount <= 4) {
-        baseItemsPerPage = 30 // Tăng đáng kể cho ít cột
-      } else if (columnCount <= 6) {
-        baseItemsPerPage = 25
-      } else if (columnCount <= 8) {
-        baseItemsPerPage = 20
-      } else {
-        baseItemsPerPage = 15 // Vẫn nhiều hơn ngang
-      }
-    }
-    
-    return baseItemsPerPage
-  }, [orientation, config.columns])
-
-  // Calculate dynamic column width based on orientation and column count
-  const getColumnWidth = useCallback((columnCount: number) => {
-    if (orientation === "landscape") {
-      // Ngang: chia đều chiều rộng
-      const availableWidth = 100 // percentage
-      const sttWidth = 8 // STT column width percentage
-      const remainingWidth = availableWidth - sttWidth
-      return `${remainingWidth / columnCount}%`
-    } else {
-      // Dọc: width tự động, nhưng có max-width
-      if (columnCount <= 4) return "auto"
-      if (columnCount <= 6) return "120px"
-      if (columnCount <= 8) return "100px"
-      return "80px"
-    }
-  }, [orientation])
-
-  // Auto-adjust displayed items when orientation changes
-  useEffect(() => {
-    if (deferredData.length > optimalItemsPerPage) {
-      setDisplayedItems(optimalItemsPerPage)
-    }
-  }, [orientation, optimalItemsPerPage, deferredData.length])
 
   // Optimized handlers with useCallback
   const handlePrint = useCallback(() => {
@@ -154,10 +95,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
           <title>Print</title>
           ${styles}
           <style>
-            @page { 
-              size: ${pageSize} ${orientation}; 
-              margin: ${orientation === "landscape" ? "10mm" : "15mm"}; 
-            }
+            @page { size: A4 portrait; margin: 15mm; }
             body { margin: 0; padding: 0; }
           </style>
         </head>
@@ -175,7 +113,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
       // Dọn dẹp iframe sau khi in
       setTimeout(() => document.body.removeChild(iframe), 1000)
     }
-  }, [orientation, pageSize])
+  }, [])
 
   const handlePrintAll = useCallback(() => {
     // Đảm bảo có dữ liệu trước khi in
@@ -193,19 +131,158 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
     // Get column keys from config
     const columnKeys = Object.keys(config.columns)
 
-    // Calculate pages needed
-    const totalPages = Math.ceil(deferredData.length / optimalItemsPerPage)
-    let htmlContent = ""
+    // Xác định orientation và pageSize
+    const pageOrientation = orientation === 'landscape' ? 'landscape' : 'portrait';
+    const pageWidth = orientation === 'landscape' ? '297mm' : '210mm';
+    const pageHeight = orientation === 'landscape' ? '210mm' : '297mm';
 
-    // Generate content for all pages
-    for (let page = 0; page < totalPages; page++) {
-      const startIndex = page * optimalItemsPerPage
-      const endIndex = Math.min(startIndex + optimalItemsPerPage, deferredData.length)
-      const pageData = deferredData.slice(startIndex, endIndex)
-
-      htmlContent += `
-        ${page > 0 ? '<div style="page-break-before: always;"></div>' : ''}
-        <div class="print-page">
+    // Tạo HTML content hoàn chỉnh
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="${selectedLanguage.code}">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Print - ${currentTranslations.title}</title>
+        <style>
+          @page { 
+            size: A4 ${pageOrientation}; 
+            margin: 15mm; 
+          }
+          body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Times New Roman', serif;
+            font-size: 13px;
+            line-height: 1.3;
+            color: black;
+            background: white;
+            width: ${pageWidth};
+            min-height: ${pageHeight};
+          }
+          .print-content {
+            width: 100%;
+            padding: 0;
+          }
+          .print-header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #1f2937;
+          }
+          .print-header h1 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          .print-header p {
+            font-size: 13px;
+            margin-bottom: 4px;
+          }
+          .print-title {
+            text-align: center;
+            margin-bottom: 24px;
+          }
+          .print-title h2 {
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+          }
+          .title-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-top: 8px;
+          }
+          .print-table {
+            margin-bottom: 32px;
+            width: 100%;
+          }
+          .print-table table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid black;
+            table-layout: ${pageOrientation === 'landscape' ? 'fixed' : 'auto'};
+          }
+          .print-th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: center;
+            padding: 6px 4px;
+            border: 1px solid black;
+            font-size: 12px;
+            vertical-align: middle;
+            max-width: ${pageOrientation === 'landscape' ? '80px' : '160px'};
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .print-td {
+            padding: 4px;
+            border: 1px solid black;
+            vertical-align: top;
+            font-size: 12px;
+            max-width: ${pageOrientation === 'landscape' ? '80px' : '160px'};
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .print-td.center {
+            text-align: center;
+          }
+          .print-td.bold {
+            font-weight: bold;
+          }
+          .print-summary {
+            margin-bottom: 24px;
+            font-weight: bold;
+            font-size: 13px;
+          }
+          .print-footer {
+            margin-top: 32px;
+            page-break-inside: avoid;
+          }
+          .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 32px;
+          }
+          .signature-item {
+            text-align: center;
+          }
+          .signature-item .title {
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 4px;
+          }
+          .signature-item .date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+          }
+          .signature-item .note {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 64px;
+          }
+          .signature-item .line {
+            border-bottom: 2px solid black;
+            width: 128px;
+            margin: 0 auto;
+          }
+          /* Đảm bảo màu sắc được in */
+          * { 
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-content">
           <!-- Header - Company Info -->
           <div class="print-header">
             <h1>${company.name}</h1>
@@ -218,7 +295,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             <h2>${currentTranslations.title}</h2>
             <div class="title-info">
               <span>${currentTranslations.printDate}: ${currentDate}</span>
-              <span>Trang: ${page + 1}/${totalPages}</span>
+              <span>Trang: 1</span>
             </div>
           </div>
 
@@ -227,17 +304,17 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             <table>
               <thead>
                 <tr>
-                  <th class="print-th">STT</th>
+                  <th class="print-th" style="width: 40px;">${currentTranslations.columns.stt}</th>
                   ${columnKeys.map((key) => `<th class="print-th">${config.columns[key][selectedLanguage.code]}</th>`).join("")}
                 </tr>
               </thead>
               <tbody>
-                ${pageData
+                ${deferredData
                   .map(
                     (item, index) => `
                   <tr>
-                    <td class="print-td center">${startIndex + index + 1}</td>
-                    ${columnKeys.map((key) => `<td class="print-td" style="max-width: ${orientation === "landscape" ? "60px" : "100px"}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${(item[key] || "").toString().replace(/"/g, '&quot;')}">${item[key] || ""}</td>`).join("")}
+                    <td class="print-td center">${index + 1}</td>
+                    ${columnKeys.map((key) => `<td class="print-td">${item[key] || ""}</td>`).join("")}
                   </tr>
                 `,
                   )
@@ -246,13 +323,12 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             </table>
           </div>
 
-          ${page === totalPages - 1 ? `
-          <!-- Summary - Only on last page -->
+          <!-- Summary -->
           <div class="print-summary">
             <p>${currentTranslations.summary.replace("{count}", deferredData.length.toString())}</p>
           </div>
 
-          <!-- Footer - Signatures - Only on last page -->
+          <!-- Footer - Signatures -->
           <div class="print-footer">
             <div class="signature-grid">
               <div class="signature-item">
@@ -275,185 +351,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
               </div>
             </div>
           </div>
-          ` : ''}
         </div>
-      `
-    }
-
-    // Tạo HTML content hoàn chỉnh
-    const fullHtmlContent = `
-    <!DOCTYPE html>
-    <html lang="${selectedLanguage.code}">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Print - ${currentTranslations.title}</title>
-        <style>
-          @page {
-            size: ${pageSize} ${orientation};
-            margin: ${orientation === "landscape" ? "10mm" : "15mm"};
-          }
-
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Times New Roman', serif;
-            font-size: ${orientation === "landscape" ? "11px" : "13px"};
-            line-height: 1.3;
-            color: black;
-            background: white;
-          }
-
-          .print-page {
-            width: 100%;
-            padding: 0;
-          }
-
-          .print-header {
-            text-align: center;
-            margin-bottom: ${orientation === "landscape" ? "20px" : "32px"};
-            padding-bottom: ${orientation === "landscape" ? "12px" : "16px"};
-            border-bottom: 2px solid #1f2937;
-          }
-
-          .print-header h1 {
-            font-size: ${orientation === "landscape" ? "14px" : "16px"};
-            font-weight: bold;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-          }
-
-          .print-header p {
-            font-size: ${orientation === "landscape" ? "11px" : "13px"};
-            margin-bottom: 4px;
-          }
-
-          .print-title {
-            text-align: center;
-            margin-bottom: ${orientation === "landscape" ? "16px" : "24px"};
-          }
-
-          .print-title h2 {
-            font-size: ${orientation === "landscape" ? "13px" : "15px"};
-            font-weight: bold;
-            margin-bottom: ${orientation === "landscape" ? "8px" : "12px"};
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-          }
-
-          .title-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: ${orientation === "landscape" ? "11px" : "13px"};
-            margin-top: 8px;
-          }
-
-          .print-table {
-            margin-bottom: ${orientation === "landscape" ? "20px" : "32px"};
-            width: 100%;
-          }
-
-          .print-table table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid black;
-            table-layout: ${orientation === "landscape" ? "fixed" : "auto"};
-          }
-
-          .print-th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-            text-align: center;
-            padding: ${orientation === "landscape" ? "3px 1px" : "6px 4px"};
-            border: 1px solid black;
-            font-size: ${orientation === "landscape" ? "10px" : "12px"};
-            vertical-align: middle;
-            word-wrap: break-word;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.2;
-          }
-
-          .print-td {
-            padding: ${orientation === "landscape" ? "2px 1px" : "4px"};
-            border: 1px solid black;
-            vertical-align: top;
-            font-size: ${orientation === "landscape" ? "10px" : "12px"};
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: ${orientation === "landscape" ? "60px" : "100px"};
-            line-height: 1.2;
-          }
-
-          .print-td.center {
-            text-align: center;
-          }
-
-          .print-summary {
-            margin-bottom: ${orientation === "landscape" ? "16px" : "24px"};
-            font-weight: bold;
-            font-size: ${orientation === "landscape" ? "11px" : "13px"};
-          }
-
-          .print-footer {
-            margin-top: ${orientation === "landscape" ? "20px" : "32px"};
-            page-break-inside: avoid;
-          }
-
-          .signature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: ${orientation === "landscape" ? "20px" : "32px"};
-          }
-
-          .signature-item {
-            text-align: center;
-          }
-
-          .signature-item .title {
-            font-weight: bold;
-            font-size: ${orientation === "landscape" ? "11px" : "13px"};
-            margin-bottom: 4px;
-          }
-
-          .signature-item .date {
-            font-size: ${orientation === "landscape" ? "10px" : "12px"};
-            color: #666;
-            margin-bottom: 4px;
-          }
-
-          .signature-item .note {
-            font-size: ${orientation === "landscape" ? "10px" : "12px"};
-            color: #666;
-            margin-bottom: ${orientation === "landscape" ? "40px" : "64px"};
-          }
-
-          .signature-item .line {
-            border-bottom: 2px solid black;
-            width: ${orientation === "landscape" ? "100px" : "128px"};
-            margin: 0 auto;
-          }
-
-          /* Đảm bảo màu sắc được in */
-          * {
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-          }
-        </style>
-      </head>
-      <body>
-        ${htmlContent}
       </body>
     </html>
   `
@@ -481,7 +379,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
       // Viết HTML vào iframe
       doc.open()
-      doc.write(fullHtmlContent)
+      doc.write(htmlContent)
       doc.close()
 
       // Đợi một chút để đảm bảo nội dung được render
@@ -516,11 +414,11 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
     // Đặt src để trigger load event
     iframe.src = "about:blank"
-  }, [deferredData, company, selectedLanguage, config, optimalItemsPerPage, orientation, pageSize])
+  }, [deferredData, company, selectedLanguage, config, orientation])
 
   const handleDownloadPDF = useCallback(() => {
-    alert(`Đang tải xuống PDF bằng ${selectedLanguage.name} (${orientation === "portrait" ? "Dọc" : "Ngang"})...`)
-  }, [selectedLanguage.name, orientation])
+    alert(`Đang tải xuống PDF bằng ${selectedLanguage.name}...`)
+  }, [selectedLanguage.name])
 
   // Debounced zoom handlers with startTransition
   const debouncedZoomIn = useMemo(
@@ -567,39 +465,32 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
     setIsLoadingMore(true)
     // Simulate loading delay
     await new Promise((resolve) => setTimeout(resolve, 500))
-    setDisplayedItems((prev) => Math.min(prev + optimalItemsPerPage, deferredData.length))
+    setDisplayedItems((prev) => Math.min(prev + 50, deferredData.length))
     setIsLoadingMore(false)
-  }, [deferredData.length, optimalItemsPerPage])
+  }, [deferredData.length])
 
   // Get column keys from config
   const columnKeys = Object.keys(config.columns)
 
   // Memoized PrintContent component
   const PrintContent = useMemo(() => {
-    const previewWidth = orientation === "landscape" ? "297mm" : "210mm"
-    const previewHeight = orientation === "landscape" ? "210mm" : "297mm"
-    
     return (
       <div id="print-content" className="print-content bg-white">
         {/* Header - Company Info */}
         <div className="print-header text-center mb-8 pb-4 border-b-2 border-gray-800">
-          <h1 className={`font-bold text-gray-900 mb-2 uppercase tracking-wide ${orientation === "landscape" ? "text-base" : "text-lg"}`}>
-            {company.name}
-          </h1>
-          <p className={`text-gray-700 mb-1 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>
+          <h1 className="text-lg font-bold text-gray-900 mb-2 uppercase tracking-wide">{company.name}</h1>
+          <p className="text-sm text-gray-700 mb-1">
             <strong>Địa chỉ:</strong> {company.address}
           </p>
-          <p className={`text-gray-700 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>
+          <p className="text-sm text-gray-700">
             <strong>Mã số thuế:</strong> {company.taxCode}
           </p>
         </div>
 
         {/* Title */}
         <div className="print-title text-center mb-6">
-          <h2 className={`font-bold text-gray-900 uppercase mb-3 tracking-wider ${orientation === "landscape" ? "text-sm" : "text-base"}`}>
-            {t.title}
-          </h2>
-          <div className={`flex justify-between items-center text-gray-700 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>
+          <h2 className="text-base font-bold text-gray-900 uppercase mb-3 tracking-wider">{t.title}</h2>
+          <div className="flex justify-between items-center text-sm text-gray-700">
             <span>
               {t.printDate}: {currentDate}
             </span>
@@ -609,22 +500,27 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
         {/* Table */}
         <div className="print-table mb-8 preview-container">
-          <table className="w-full border-collapse" style={{ tableLayout: orientation === "landscape" ? "fixed" : "auto" }}>
+          <table
+            className="w-full border-collapse"
+            style={{ tableLayout: orientation === 'landscape' ? 'fixed' : 'auto' }}
+          >
             <thead>
               <tr>
-                <th className={`print-th border-2 border-gray-800 px-2 py-2 text-center font-bold bg-gray-100 ${orientation === "landscape" ? "text-xs w-8" : "text-xs w-12"}`}>
+                <th
+                  className="print-th border-2 border-gray-800 px-2 py-2 text-center text-xs font-bold bg-gray-100 w-12"
+                  style={{ maxWidth: '60px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
                   {t.columns.stt}
                 </th>
                 {columnKeys.map((key) => (
                   <th
                     key={key}
-                    className={`print-th border-2 border-gray-800 px-2 py-2 text-center font-bold bg-gray-100 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}
-                    style={{ 
-                      wordWrap: "break-word",
-                      width: orientation === "landscape" ? `${Math.floor(100 / columnKeys.length)}%` : "auto",
-                      whiteSpace: orientation === "landscape" ? "nowrap" : "normal",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis"
+                    className="print-th border-2 border-gray-800 px-2 py-2 text-center text-xs font-bold bg-gray-100"
+                    style={{
+                      maxWidth: orientation === 'landscape' ? '80px' : '160px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {config.columns[key][selectedLanguage.code]}
@@ -635,23 +531,23 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             <tbody>
               {deferredData.slice(0, displayedItems).map((item, index) => (
                 <tr key={item.id || index} className="print-row">
-                  <td className={`print-td border border-gray-600 px-2 py-1.5 text-center ${orientation === "landscape" ? "text-xs" : "text-xs"}`}>
+                  <td
+                    className="print-td border border-gray-600 px-2 py-1.5 text-center text-xs"
+                    style={{ maxWidth: '60px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
                     {index + 1}
                   </td>
                   {columnKeys.map((key) => (
-                    <td 
-                      key={key} 
-                      className={`print-td border border-gray-600 px-2 py-1.5 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}
-                      style={{ 
-                        wordWrap: "break-word", 
-                        overflowWrap: "break-word",
-                        whiteSpace: orientation === "landscape" ? "nowrap" : "normal",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: orientation === "landscape" ? "60px" : "100px",
-                        lineHeight: "1.2"
+                    <td
+                      key={key}
+                      className="print-td border border-gray-600 px-2 py-1.5 text-xs"
+                      style={{
+                        maxWidth: orientation === 'landscape' ? '80px' : '160px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
-                      title={item[key] || ""}
+                      title={item[key] || "-"}
                     >
                       {item[key] || "-"}
                     </td>
@@ -664,7 +560,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
         {/* Summary */}
         <div className="print-summary mb-8">
-          <p className={`font-medium text-gray-900 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>
+          <p className="text-sm font-medium text-gray-900">
             {t.summary.replace("{count}", displayedItems.toString())}{" "}
             {displayedItems < deferredData.length ? `(Hiển thị ${displayedItems}/${deferredData.length})` : ""}
           </p>
@@ -672,41 +568,42 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
         {/* Footer - Signatures */}
         <div className="print-footer">
-          <div className={`grid grid-cols-3 mt-12 ${orientation === "landscape" ? "gap-4" : "gap-8"}`}>
+          <div className="grid grid-cols-3 gap-8 mt-12">
             <div className="text-center">
-              <p className={`font-bold mb-1 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>{t.footer.preparedBy}</p>
-              <p className={`text-gray-600 mb-1 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}>{t.footer.date}</p>
-              <p className={`text-gray-600 ${orientation === "landscape" ? "mb-8 text-xs" : "mb-16 text-xs"}`}>{t.footer.signature}</p>
-              <div className={`border-b-2 border-gray-800 mx-auto ${orientation === "landscape" ? "w-24" : "w-32"}`}></div>
+              <p className="font-bold text-sm mb-1">{t.footer.preparedBy}</p>
+              <p className="text-xs text-gray-600 mb-1">{t.footer.date}</p>
+              <p className="text-xs text-gray-600 mb-16">{t.footer.signature}</p>
+              <div className="border-b-2 border-gray-800 w-32 mx-auto"></div>
             </div>
             <div className="text-center">
-              <p className={`font-bold mb-1 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>{t.footer.accountant}</p>
-              <p className={`text-gray-600 mb-1 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}>{t.footer.date}</p>
-              <p className={`text-gray-600 ${orientation === "landscape" ? "mb-8 text-xs" : "mb-16 text-xs"}`}>{t.footer.signature}</p>
-              <div className={`border-b-2 border-gray-800 mx-auto ${orientation === "landscape" ? "w-24" : "w-32"}`}></div>
+              <p className="font-bold text-sm mb-1">{t.footer.accountant}</p>
+              <p className="text-xs text-gray-600 mb-1">{t.footer.date}</p>
+              <p className="text-xs text-gray-600 mb-16">{t.footer.signature}</p>
+              <div className="border-b-2 border-gray-800 w-32 mx-auto"></div>
             </div>
             <div className="text-center">
-              <p className={`font-bold mb-1 ${orientation === "landscape" ? "text-xs" : "text-sm"}`}>{t.footer.director}</p>
-              <p className={`text-gray-600 mb-1 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}>{t.footer.date}</p>
-              <p className={`text-gray-600 ${orientation === "landscape" ? "mb-8 text-xs" : "mb-16 text-xs"}`}>{t.footer.signature}</p>
-              <div className={`border-b-2 border-gray-800 mx-auto ${orientation === "landscape" ? "w-24" : "w-32"}`}></div>
+              <p className="font-bold text-sm mb-1">{t.footer.director}</p>
+              <p className="text-xs text-gray-600 mb-1">{t.footer.date}</p>
+              <p className="text-xs text-gray-600 mb-16">{t.footer.signature}</p>
+              <div className="border-b-2 border-gray-800 w-32 mx-auto"></div>
             </div>
           </div>
         </div>
       </div>
     )
-  }, [deferredData, selectedLanguage.code, company, currentDate, t, displayedItems, config, columnKeys, orientation])
+  }, [deferredData, selectedLanguage.code, company, currentDate, t, displayedItems, config, columnKeys])
 
   useEffect(() => {
-    setDisplayedItems(optimalItemsPerPage)
-  }, [optimalItemsPerPage])
+    setDisplayedItems(50)
+  }, [deferredData.length])
 
   if (!isOpen) return null
 
   if (isPreviewMode) {
-    const previewWidth = orientation === "landscape" ? "297mm" : "210mm"
-    const previewHeight = orientation === "landscape" ? "210mm" : "297mm"
-    
+    // Tùy chỉnh kích thước preview theo orientation
+    const previewWidth = orientation === 'landscape' ? '297mm' : '210mm';
+    const previewHeight = orientation === 'landscape' ? '210mm' : '297mm';
+    const previewPadding = orientation === 'landscape' ? '10mm' : '20mm';
     return (
       <div className="fixed inset-0 bg-gray-100 z-50 overflow-auto">
         {/* Preview Header - NO PRINT */}
@@ -732,32 +629,28 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                     <ZoomIn size={16} />
                   </button>
                 </div>
-                <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+                {/* Thêm nút chọn hướng in */}
+                <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1 ml-4">
                   <button
-                    onClick={() => setOrientation("portrait")}
-                    className={`p-1.5 rounded transition-colors ${orientation === "portrait" ? "bg-white shadow-sm" : "hover:bg-white"}`}
+                    onClick={() => setOrientation('portrait')}
+                    className={`p-1.5 rounded transition-colors ${orientation === 'portrait' ? 'bg-white shadow-sm' : 'hover:bg-white'}`}
                     title="Dọc"
                   >
-                    📄
+                    <span role="img" aria-label="portrait">📄</span>
                   </button>
                   <button
-                    onClick={() => setOrientation("landscape")}
-                    className={`p-1.5 rounded transition-colors ${orientation === "landscape" ? "bg-white shadow-sm" : "hover:bg-white"}`}
+                    onClick={() => setOrientation('landscape')}
+                    className={`p-1.5 rounded transition-colors ${orientation === 'landscape' ? 'bg-white shadow-sm' : 'hover:bg-white'}`}
                     title="Ngang"
                   >
-                    <RotateCcw size={16} />
+                    <span role="img" aria-label="landscape">🖼️</span>
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">
-                    width: orientation === "landscape" ? getColumnWidth(columnKeys.length) : "auto",
-                    maxWidth: orientation === "landscape" ? "60px" : "120px",
-                </span>
                 <button
-                    textOverflow: "ellipsis",
-                    lineHeight: "1.2"
+                  onClick={handlePreviewModeToggle}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   <X size={16} />
@@ -769,7 +662,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
         </div>
 
         {/* Preview Content */}
-        <div className="max-w-6xl mx-auto p-8">
+        <div className="max-w-4xl mx-auto p-8">
           <div
             className="bg-white shadow-2xl mx-auto print-here"
             style={{
@@ -777,7 +670,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
               transformOrigin: "top center",
               width: previewWidth,
               minHeight: previewHeight,
-              padding: orientation === "landscape" ? "10mm" : "20mm",
+              padding: previewPadding,
             }}
           >
             {PrintContent}
@@ -797,7 +690,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                   </>
                 ) : (
                   <>
-                    <span>Tải thêm {optimalItemsPerPage} mục ({deferredData.length - displayedItems} còn lại)</span>
+                    <span>Tải thêm 50 mục ({deferredData.length - displayedItems} còn lại)</span>
                   </>
                 )}
               </button>
@@ -864,55 +757,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
               </div>
             </div>
 
-            {/* Page Orientation & Size */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">Định dạng trang</label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">Hướng trang</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setOrientation("portrait")}
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        orientation === "portrait"
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-2xl mb-1">📄</div>
-                        <div className="text-xs font-medium">Dọc</div>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setOrientation("landscape")}
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg transition-all ${
-                        orientation === "landscape"
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="text-center">
-                        <RotateCcw size={20} className="mx-auto mb-1" />
-                        <div className="text-xs font-medium">Ngang</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">Kích thước</label>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(e.target.value as "A4" | "A3")}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="A4">A4 (210 × 297 mm)</option>
-                    <option value="A3">A3 (297 × 420 mm)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
             {/* Print Options */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">Thông tin báo cáo</label>
@@ -922,9 +766,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                     <FileText size={20} className="text-gray-600" />
                     <div>
                       <div className="font-medium text-gray-900">Định dạng</div>
-                      <div className="text-sm text-gray-600">
-                        {pageSize}, {orientation === "portrait" ? "Dọc" : "Ngang"}
-                      </div>
+                      <div className="text-sm text-gray-600">A4, Portrait</div>
                     </div>
                   </div>
                 </div>
@@ -966,12 +808,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                 </p>
                 <p>
                   Tiêu đề: <strong>{t.title}</strong>
-                </p>
-                <p>
-                  Tối ưu cho {orientation === "portrait" ? "dọc" : "ngang"}: <strong>{optimalItemsPerPage} dòng/trang</strong>
-                </p>
-                <p>
-                  Ước tính số trang: <strong>{Math.ceil(deferredData.length / optimalItemsPerPage)} trang</strong>
                 </p>
               </div>
             </div>
@@ -1111,25 +947,16 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             background-color: #f5f5f5 !important;
             font-weight: bold !important;
             text-align: center !important;
-            padding: 3px 2px !important;
+            padding: 4px !important;
             border: 1px solid black !important;
-            font-size: 11px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            line-height: 1.2 !important;
+            font-size: 12px !important;
           }
           
           .print-td {
-            padding: 2px 3px !important;
+            padding: 3px 4px !important;
             border: 1px solid black !important;
             vertical-align: top !important;
-            font-size: 11px !important;
-            white-space: nowrap !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            max-width: 80px !important;
-            line-height: 1.2 !important;
+            font-size: 12px !important;
           }
           
           .print-row {
