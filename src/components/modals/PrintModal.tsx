@@ -340,6 +340,9 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             font-size: ${orientation === "landscape" ? "10px" : "12px"};
             vertical-align: middle;
             word-wrap: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
           .print-td {
@@ -349,6 +352,10 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             font-size: ${orientation === "landscape" ? "10px" : "12px"};
             word-wrap: break-word;
             overflow-wrap: break-word;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: ${orientation === "landscape" ? "80px" : "120px"};
           }
 
           .print-td.center {
@@ -576,7 +583,10 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                     className={`print-th border-2 border-gray-800 px-2 py-2 text-center font-bold bg-gray-100 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}
                     style={{ 
                       wordWrap: "break-word",
-                      width: orientation === "landscape" ? `${Math.floor(100 / columnKeys.length)}%` : "auto"
+                      width: orientation === "landscape" ? `${Math.floor(100 / columnKeys.length)}%` : "auto",
+                      whiteSpace: orientation === "landscape" ? "nowrap" : "normal",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis"
                     }}
                   >
                     {config.columns[key][selectedLanguage.code]}
@@ -594,7 +604,15 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                     <td 
                       key={key} 
                       className={`print-td border border-gray-600 px-2 py-1.5 ${orientation === "landscape" ? "text-xs" : "text-xs"}`}
-                      style={{ wordWrap: "break-word", overflowWrap: "break-word" }}
+                      style={{ 
+                        wordWrap: "break-word", 
+                        overflowWrap: "break-word",
+                        whiteSpace: orientation === "landscape" ? "nowrap" : "normal",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        maxWidth: orientation === "landscape" ? "80px" : "120px"
+                      }}
+                      title={item[key] || ""}
                     >
                       {item[key] || "-"}
                     </td>
@@ -1052,6 +1070,9 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             padding: 4px !important;
             border: 1px solid black !important;
             font-size: 12px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
           
           .print-td {
@@ -1059,6 +1080,10 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             border: 1px solid black !important;
             vertical-align: top !important;
             font-size: 12px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 100px !important;
           }
           
           .print-row {
