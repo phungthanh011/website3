@@ -64,17 +64,53 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
   // Calculate optimal items per page based on orientation and data size
   const optimalItemsPerPage = useMemo(() => {
     const columnCount = Object.keys(config.columns).length
-    const baseItemsPerPage = orientation === "landscape" ? 25 : 20
     
-    // Adjust based on column count
-    if (columnCount > 8) {
-      return orientation === "landscape" ? 20 : 15
-    } else if (columnCount > 5) {
-      return orientation === "landscape" ? 25 : 20
+    // Tính toán dựa trên chiều cao trang và số cột
+    let baseItemsPerPage
+    
+    if (orientation === "landscape") {
+      // Ngang: ít dòng hơn do chiều cao ngắn, nhưng có thể chứa nhiều cột
+      if (columnCount <= 4) {
+        baseItemsPerPage = 18 // Tăng số dòng cho ít cột
+      } else if (columnCount <= 6) {
+        baseItemsPerPage = 15
+      } else if (columnCount <= 8) {
+        baseItemsPerPage = 12
+      } else {
+        baseItemsPerPage = 10 // Giảm mạnh cho nhiều cột
+      }
+    } else {
+      // Dọc: nhiều dòng hơn do chiều cao dài
+      if (columnCount <= 4) {
+        baseItemsPerPage = 30 // Tăng đáng kể cho ít cột
+      } else if (columnCount <= 6) {
+        baseItemsPerPage = 25
+      } else if (columnCount <= 8) {
+        baseItemsPerPage = 20
+      } else {
+        baseItemsPerPage = 15 // Vẫn nhiều hơn ngang
+      }
     }
     
-    return orientation === "landscape" ? 30 : 25
+    return baseItemsPerPage
   }, [orientation, config.columns])
+
+  // Calculate dynamic column width based on orientation and column count
+  const getColumnWidth = useCallback((columnCount: number) => {
+    if (orientation === "landscape") {
+      // Ngang: chia đều chiều rộng
+      const availableWidth = 100 // percentage
+      const sttWidth = 8 // STT column width percentage
+      const remainingWidth = availableWidth - sttWidth
+      return `${remainingWidth / columnCount}%`
+    } else {
+      // Dọc: width tự động, nhưng có max-width
+      if (columnCount <= 4) return "auto"
+      if (columnCount <= 6) return "120px"
+      if (columnCount <= 8) return "100px"
+      return "80px"
+    }
+  }, [orientation])
 
   // Auto-adjust displayed items when orientation changes
   useEffect(() => {
@@ -201,7 +237,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                     (item, index) => `
                   <tr>
                     <td class="print-td center">${startIndex + index + 1}</td>
-                    ${columnKeys.map((key) => `<td class="print-td">${item[key] || ""}</td>`).join("")}
+                    ${columnKeys.map((key) => `<td class="print-td" style="max-width: ${orientation === "landscape" ? "60px" : "100px"}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${(item[key] || "").toString().replace(/"/g, '&quot;')}">${item[key] || ""}</td>`).join("")}
                   </tr>
                 `,
                   )
@@ -335,7 +371,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             background-color: #f5f5f5;
             font-weight: bold;
             text-align: center;
-            padding: ${orientation === "landscape" ? "4px 2px" : "6px 4px"};
+            padding: ${orientation === "landscape" ? "3px 1px" : "6px 4px"};
             border: 1px solid black;
             font-size: ${orientation === "landscape" ? "10px" : "12px"};
             vertical-align: middle;
@@ -343,10 +379,11 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            line-height: 1.2;
           }
 
           .print-td {
-            padding: ${orientation === "landscape" ? "3px 2px" : "4px"};
+            padding: ${orientation === "landscape" ? "2px 1px" : "4px"};
             border: 1px solid black;
             vertical-align: top;
             font-size: ${orientation === "landscape" ? "10px" : "12px"};
@@ -355,7 +392,8 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: ${orientation === "landscape" ? "80px" : "120px"};
+            max-width: ${orientation === "landscape" ? "60px" : "100px"};
+            line-height: 1.2;
           }
 
           .print-td.center {
@@ -610,7 +648,8 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                         whiteSpace: orientation === "landscape" ? "nowrap" : "normal",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        maxWidth: orientation === "landscape" ? "80px" : "120px"
+                        maxWidth: orientation === "landscape" ? "60px" : "100px",
+                        lineHeight: "1.2"
                       }}
                       title={item[key] || ""}
                     >
@@ -713,10 +752,12 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">
-                  {orientation === "portrait" ? "Dọc" : "Ngang"} • {pageSize}
+                    width: orientation === "landscape" ? getColumnWidth(columnKeys.length) : "auto",
+                    maxWidth: orientation === "landscape" ? "60px" : "120px",
                 </span>
                 <button
-                  onClick={handlePreviewModeToggle}
+                    textOverflow: "ellipsis",
+                    lineHeight: "1.2"
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   <X size={16} />
@@ -929,6 +970,9 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
                 <p>
                   Tối ưu cho {orientation === "portrait" ? "dọc" : "ngang"}: <strong>{optimalItemsPerPage} dòng/trang</strong>
                 </p>
+                <p>
+                  Ước tính số trang: <strong>{Math.ceil(deferredData.length / optimalItemsPerPage)} trang</strong>
+                </p>
               </div>
             </div>
           </div>
@@ -1067,23 +1111,25 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             background-color: #f5f5f5 !important;
             font-weight: bold !important;
             text-align: center !important;
-            padding: 4px !important;
+            padding: 3px 2px !important;
             border: 1px solid black !important;
-            font-size: 12px !important;
+            font-size: 11px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            line-height: 1.2 !important;
           }
           
           .print-td {
-            padding: 3px 4px !important;
+            padding: 2px 3px !important;
             border: 1px solid black !important;
             vertical-align: top !important;
-            font-size: 12px !important;
+            font-size: 11px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
-            max-width: 100px !important;
+            max-width: 80px !important;
+            line-height: 1.2 !important;
           }
           
           .print-row {
