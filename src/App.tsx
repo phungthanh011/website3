@@ -146,19 +146,7 @@ function AppContent() {
             <Route path="/help-support" element={<ModuleContent moduleId="help-support" />} />
             
             {/* All other routes */}
-            <Route path="/basic-data" element={<ModuleContent moduleId="basic-data" />} />
-            <Route path="/user-management" element={<ModuleContent moduleId="user-management" />} />
-            <Route path="/customer-management" element={<CustomerManagementPage />} />
-            <Route path="/code-registration" element={<ModuleContent moduleId="code-registration" />} />
-            <Route path="/account-management" element={<ModuleContent moduleId="account-management" />} />
-            <Route path="/warehouse-management" element={<Kho />} />
-            <Route path="/warehouse-category" element={<ModuleContent moduleId="warehouse-category" />} />
-            <Route path="/inventory-declaration" element={<ModuleContent moduleId="inventory-declaration" />} />
-            <Route path="/material-group" element={<MaterialGroup />} />
-            <Route path="/unit-management" element={<UnitManagementPage />} />
-            <Route path="/standard-management" element={<ModuleContent moduleId="standard-management" />} />
-            <Route path="/note-management" element={<ModuleContent moduleId="note-management" />} />
-            <Route path="/contract-management" element={<ModuleContent moduleId="contract-management" />} />
+           
             <Route path="/summary" element={<ModuleContent moduleId="summary" />} />
             <Route path="/journal" element={<ModuleContent moduleId="journal" />} />
             <Route path="/cash" element={<ModuleContent moduleId="cash" />} />
