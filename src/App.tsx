@@ -8,14 +8,21 @@ import LoginPage from './components/LoginPage';
 import CostObjectPage from './pages/CostCenter';
 import BankManagementPage from './pages/BankManagementPage';
 import CustomerManagementPage from "./pages/CustomerManagementPage"; // Adjust the path if necessary
+import Kho from "./pages/kho";
+import MaterialGroup from "./pages/MaterialGroup";
+import UnitManagementPage from "./pages/UnitManagement";
 
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(true); // Đặt mặc định là true để test
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Persist sidebarCollapsed in localStorage
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const stored = localStorage.getItem('sidebar-collapsed');
+    return stored ? stored === 'true' : false;
+  });
   const [isMobile, setIsMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -32,7 +39,6 @@ function AppContent() {
     const checkScreenSize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      
       // On mobile, sidebar should be closed by default
       if (mobile) {
         setSidebarOpen(false);
@@ -44,6 +50,13 @@ function AppContent() {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
+
+  // Persist sidebarCollapsed to localStorage when it changes (desktop only)
+  useEffect(() => {
+    if (!isMobile) {
+      localStorage.setItem('sidebar-collapsed', sidebarCollapsed ? 'true' : 'false');
+    }
+  }, [sidebarCollapsed, isMobile]);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -73,7 +86,10 @@ function AppContent() {
     if (isMobile) {
       setSidebarOpen(!sidebarOpen);
     } else {
-      setSidebarCollapsed(!sidebarCollapsed);
+      setSidebarCollapsed((prev) => {
+        localStorage.setItem('sidebar-collapsed', !prev ? 'true' : 'false');
+        return !prev;
+      });
     }
   };
 
@@ -129,7 +145,7 @@ function AppContent() {
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/cost-center" element={<CostObjectPage />} />
 
-            <Route path="/bank-management" element={<BankManagementPage moduleId="bank-management" />} />
+            <Route path="/bank-management" element={<BankManagementPage />} />
             <Route path="/company-management" element={<ModuleContent moduleId="company-management" />} />
             <Route path="/profile" element={<ModuleContent moduleId="profile" />} />
             <Route path="/help-support" element={<ModuleContent moduleId="help-support" />} />
@@ -137,14 +153,14 @@ function AppContent() {
             {/* All other routes */}
             <Route path="/basic-data" element={<ModuleContent moduleId="basic-data" />} />
             <Route path="/user-management" element={<ModuleContent moduleId="user-management" />} />
-            <Route path="/customer-management" element={<CustomerManagementPage moduleId="customer-management" />} />
+            <Route path="/customer-management" element={<CustomerManagementPage />} />
             <Route path="/code-registration" element={<ModuleContent moduleId="code-registration" />} />
             <Route path="/account-management" element={<ModuleContent moduleId="account-management" />} />
-            <Route path="/warehouse-management" element={<ModuleContent moduleId="warehouse-management" />} />
+            <Route path="/warehouse-management" element={<Kho />} />
             <Route path="/warehouse-category" element={<ModuleContent moduleId="warehouse-category" />} />
             <Route path="/inventory-declaration" element={<ModuleContent moduleId="inventory-declaration" />} />
-            <Route path="/material-group" element={<ModuleContent moduleId="material-group" />} />
-            <Route path="/unit-management" element={<ModuleContent moduleId="unit-management" />} />
+            <Route path="/material-group" element={<MaterialGroup />} />
+            <Route path="/unit-management" element={<UnitManagementPage />} />
             <Route path="/standard-management" element={<ModuleContent moduleId="standard-management" />} />
             <Route path="/note-management" element={<ModuleContent moduleId="note-management" />} />
             <Route path="/contract-management" element={<ModuleContent moduleId="contract-management" />} />
@@ -163,6 +179,22 @@ function AppContent() {
             <Route path="/firmbanking" element={<ModuleContent moduleId="firmbanking" />} />
             <Route path="/e-documents" element={<ModuleContent moduleId="e-documents" />} />
             <Route path="/utilities" element={<ModuleContent moduleId="utilities" />} />
+            
+            {/* Add routes for the submenus under 'summary' */}
+            <Route path="/documents" element={<ModuleContent moduleId="documents" />} />
+            <Route path="/receipt" element={<ModuleContent moduleId="receipt" />} />
+            <Route path="/payment" element={<ModuleContent moduleId="payment" />} />
+            <Route path="/debt-note" element={<ModuleContent moduleId="debt-note" />} />
+            <Route path="/credit-note" element={<ModuleContent moduleId="credit-note" />} />
+            <Route path="/purchase-order" element={<ModuleContent moduleId="purchase-order" />} />
+            <Route path="/service-order" element={<ModuleContent moduleId="service-order" />} />
+            <Route path="/sales-order" element={<ModuleContent moduleId="sales-order" />} />
+            <Route path="/offset-order" element={<ModuleContent moduleId="offset-order" />} />
+            <Route path="/other-order" element={<ModuleContent moduleId="other-order" />} />
+            <Route path="/opening-balance" element={<ModuleContent moduleId="opening-balance" />} />
+            <Route path="/transfer" element={<ModuleContent moduleId="transfer" />} />
+            <Route path="/check-transfer" element={<ModuleContent moduleId="check-transfer" />} />
+            <Route path="/lock" element={<ModuleContent moduleId="lock" />} />
             
             {/* Catch all route - redirect to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
