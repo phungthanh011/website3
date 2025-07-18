@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BarChart3, 
   Database, 
@@ -207,30 +207,51 @@ function findPathToNode(
   return null;
 }
 
-// Hàm tìm tất cả path đến các node chứa từ khóa (dạng mảng các path)
-function findAllPathsToMatchedNodes(
+// Hàm tìm tất cả path đến các node chứa từ khóa và menu cha của chúng
+function findAllMatchingPaths(
   nodeList: (MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] }))[],
   term: string,
   path: string[] = []
 ): string[][] {
-  let result: string[][] = [];
+  const result: string[][] = [];
+  
   for (const node of nodeList) {
     const currentPath = [...path, node.id];
     const nodeMatch = node.title.toLowerCase().includes(term.toLowerCase());
-    let childMatched = false;
+    let hasMatchingChild = false;
+    
     if (node.subItems) {
-      const childPaths = findAllPathsToMatchedNodes(node.subItems, term, currentPath);
+      const childPaths = findAllMatchingPaths(node.subItems, term, currentPath);
       if (childPaths.length > 0) {
-        result = result.concat(childPaths);
-        childMatched = true;
+        result.push(...childPaths);
+        hasMatchingChild = true;
       }
     }
-    if (nodeMatch || childMatched) {
-      // Nếu node khớp hoặc có con khớp, thêm path này
+    
+    // Nếu node khớp hoặc có con khớp, thêm path này vào kết quả
+    if (nodeMatch || hasMatchingChild) {
       result.push(currentPath);
     }
   }
   return result;
+}
+
+// Hàm kiểm tra xem một node có nên được hiển thị không (node hoặc con của nó match)
+function shouldShowNode(
+  node: MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] }),
+  term: string,
+  allMatchingPaths: string[][],
+  currentPath: string[]
+): boolean {
+  if (!term) return true;
+  
+  const nodeFullPath = [...currentPath, node.id];
+  
+  // Kiểm tra xem path này có trong danh sách matching paths không
+  return allMatchingPaths.some(matchingPath => 
+    matchingPath.length >= nodeFullPath.length &&
+    nodeFullPath.every((pathPart, index) => pathPart === matchingPath[index])
+  );
 }
 
 function SidebarMenuNode({
@@ -240,6 +261,9 @@ function SidebarMenuNode({
   onMenuSelect,
   location,
   setExpandedPath,
+  searchTerm,
+  allMatchingPaths,
+  currentPath,
 }: {
   node: MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] });
   level?: number;
@@ -247,10 +271,14 @@ function SidebarMenuNode({
   onMenuSelect: (id: string) => void;
   location: ReturnType<typeof useLocation>;
   setExpandedPath: React.Dispatch<React.SetStateAction<string[]>>;
+  searchTerm: string;
+  allMatchingPaths: string[][];
+  currentPath: string[];
 }) {
   const isMenuItem = (n: any): n is MenuItem => !!(n as MenuItem).icon;
   const hasChildren = !!node.subItems && node.subItems.length > 0;
   const isExpanded = expandedPath[level] === node.id;
+  const nodeFullPath = [...currentPath, node.id];
 
   // Determine if this node or any of its subItems is active
   const isActive = (() => {
@@ -281,7 +309,7 @@ function SidebarMenuNode({
     }
   };
 
-  // Highlight searchTerm in text
+  // Highlight search term in text
   const highlightText = (text: string, term: string) => {
     if (!term) return text;
     const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -292,6 +320,11 @@ function SidebarMenuNode({
         : part
     );
   };
+
+  // Không hiển thị node nếu không match với search
+  if (!shouldShowNode(node, searchTerm, allMatchingPaths, currentPath)) {
+    return null;
+  }
 
   return (
     <div className="relative">
@@ -333,7 +366,9 @@ function SidebarMenuNode({
             {isMenuItem(node) && level === 0 && node.icon && (
               <span className="flex-shrink-0 text-gray-400">{iconMap[node.icon]}</span>
             )}
-            <span className={`text-sm ${level > 0 ? 'font-normal' : 'font-medium'} ${level > 0 && isActive ? 'text-red-700 font-bold' : ''}`}>{highlightText(node.title, (typeof window !== 'undefined' && window.document) ? (document.querySelector('input[placeholder="Tìm kiếm menu..."]') as HTMLInputElement)?.value || '' : '')}</span>
+            <span className={`text-sm ${level > 0 ? 'font-normal' : 'font-medium'} ${level > 0 && isActive ? 'text-red-700 font-bold' : ''}`}>
+              {highlightText(node.title, searchTerm)}
+            </span>
           </div>
           {hasChildren && (
             <span
@@ -356,6 +391,9 @@ function SidebarMenuNode({
               onMenuSelect={onMenuSelect}
               location={location}
               setExpandedPath={setExpandedPath}
+              searchTerm={searchTerm}
+              allMatchingPaths={allMatchingPaths}
+              currentPath={nodeFullPath}
             />
           ))}
         </div>
@@ -393,83 +431,48 @@ export default function Sidebar({
     const path = findPathToNode(menuGroups.flatMap(g => g.items), menuId);
     if (path) setExpandedPath(path);
     onMenuSelect(menuId);
-    // Nếu đang search, cập nhật lại trạng thái activeMenu tạm thời
-    if (searchTerm && !originalMenuState) {
-      setOriginalMenuState({ expandedPath, activeMenu });
-    }
   };
 
-
-  // Filter menu items based on search term, hỗ trợ cấp 3, chỉ show menu cha có con phù hợp
-  const filterMenuItems = (groups: MenuGroup[]) => {
-    if (!searchTerm) return groups; // Không filter nếu không search
-
-    // Lấy tất cả path đến các node khớp
-    const allPaths = groups.flatMap(group =>
-      findAllPathsToMatchedNodes(group.items, searchTerm, [group.id])
+  // Tính toán tất cả matching paths cho search
+  const allMatchingPaths = useMemo(() => {
+    if (!searchTerm) return [];
+    return menuGroups.flatMap(group =>
+      findAllMatchingPaths(group.items, searchTerm, [group.id])
     );
+  }, [searchTerm]);
 
-    // Lấy tất cả id cần show (menu cha và con)
-    const idsToShow = new Set<string>();
-    allPaths.forEach(path => path.forEach(id => idsToShow.add(id)));
+  // Filter menu groups để chỉ hiển thị những group có item matching
+  const filteredMenuGroups = useMemo(() => {
+    if (!searchTerm) return menuGroups;
+    
+    return menuGroups.filter(group => {
+      // Kiểm tra xem group này có item nào matching không
+      return allMatchingPaths.some(path => path[0] === group.id);
+    });
+  }, [searchTerm, allMatchingPaths]);
 
-    // Filter lại menu, chỉ giữ các node có id nằm trong idsToShow
-    return groups
-      .map(group => {
-        if (!idsToShow.has(group.id)) return null;
-        return {
-          ...group,
-          items: group.items
-            .filter(item => idsToShow.has(item.id))
-            .map(item => ({
-              ...item,
-              subItems: item.subItems
-                ? item.subItems
-                    .filter(sub => idsToShow.has(sub.id))
-                    .map(sub => ({
-                      ...sub,
-                      subItems: (sub as any).subItems
-                        ? (sub as any).subItems.filter((third: any) => idsToShow.has(third.id))
-                        : undefined,
-                    }))
-                : undefined,
-            })),
-        };
-      })
-      .filter(Boolean) as MenuGroup[];
-  };
-
-  const filteredMenuGroups = filterMenuItems(menuGroups);
-
-  // Lưu trạng thái menu gốc khi bắt đầu search, khôi phục khi xóa search
+  // Quản lý trạng thái search và expandedPath
   useEffect(() => {
     if (searchTerm) {
-      // Khi bắt đầu search, lưu trạng thái menu gốc nếu chưa lưu
+      // Lưu trạng thái ban đầu khi bắt đầu search
       if (!originalMenuState) {
         setOriginalMenuState({ expandedPath, activeMenu });
       }
-      // Tìm path đầu tiên đến node đầu tiên chứa từ khóa
-      let firstPath: string[] | null = null;
-      for (const group of menuGroups) {
-        const paths = findAllPathsToMatchedNodes(group.items, searchTerm, [group.id]);
-        if (paths.length > 0) {
-          firstPath = paths[0];
-          break;
-        }
-      }
-      if (firstPath) {
-        setExpandedPath(firstPath);
+      
+      // Lấy path đầu tiên từ matching paths để mở menu
+      if (allMatchingPaths.length > 0) {
+        setExpandedPath(allMatchingPaths[0]);
       } else {
-        setExpandedPath([]); // Không có kết quả thì đóng hết
+        setExpandedPath([]);
       }
     } else {
-      // Khi xóa search, kiểm tra trạng thái menu
+      // Khôi phục trạng thái ban đầu khi xóa search
       if (originalMenuState) {
         setExpandedPath(originalMenuState.expandedPath);
         setOriginalMenuState(null);
       }
     }
-  }, [searchTerm]);
+  }, [searchTerm, allMatchingPaths, expandedPath, activeMenu, originalMenuState]);
 
   // Khi activeMenu thay đổi, luôn mở parent menu (chỉ khi không search)
   useEffect(() => {
@@ -584,6 +587,9 @@ export default function Sidebar({
                           onMenuSelect={handleMenuSelect}
                           location={location}
                           setExpandedPath={setExpandedPath}
+                          searchTerm={searchTerm}
+                          allMatchingPaths={allMatchingPaths}
+                          currentPath={[group.id]}
                         />
                       ))}
                     </div>
@@ -661,6 +667,9 @@ export default function Sidebar({
                     onMenuSelect={handleMenuSelect}
                     location={location}
                     setExpandedPath={setExpandedPath}
+                    searchTerm={searchTerm}
+                    allMatchingPaths={allMatchingPaths}
+                    currentPath={[group.id]}
                   />
                 ))}
               </div>
