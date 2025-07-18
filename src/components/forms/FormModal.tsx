@@ -199,7 +199,6 @@ export default function FormModal({
         await onSubmit(formData)
         onClose()
       } catch (error) {
-        console.error("Form submission error:", error)
         // Handle error (could show toast notification)
       } finally {
         setIsSubmitting(false)

@@ -58,7 +58,6 @@ export default function CostObjectPage() {
   const [data, setData] = useState<DoiTuongTapHopChiPhi[]>(() => generateMockData(1000))
 
   const handleImport = useCallback((rows: any[], method: "add" | "update" | "overwrite") => {
-    console.log("Import data:", rows, "Method:", method)
     // This logic is now handled inside TablePage's ExcelImportModal onImport prop
     // For now, we'll keep this as a placeholder if the parent needs to react to import.
     // If TablePage fully manages data, this `onImport` prop might become redundant or change purpose.
@@ -66,17 +65,15 @@ export default function CostObjectPage() {
   }, [])
 
   const handlePrint = useCallback((lang: "vi" | "en" | "ko") => {
-    console.log("Print in language:", lang)
+    // Print functionality handled by PrintModal
   }, [])
 
   // Update handlers to work with the form modal
   const handleAdd = useCallback((newItem: DoiTuongTapHopChiPhi) => {
-    console.log("Add new item:", newItem)
     setData((prev) => [...prev, newItem])
   }, [])
 
   const handleEdit = useCallback((updatedItem: DoiTuongTapHopChiPhi) => {
-    console.log("Edit item:", updatedItem)
     setData((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
   }, [])
 
@@ -90,7 +87,6 @@ export default function CostObjectPage() {
 
   const handleExport = useCallback(() => {
     exportToExcel(data, costObjectColumns, "doi-tuong-tap-hop-chi-phi.xlsx", "DoiTuongChiPhi")
-    alert("Đã xuất dữ liệu ra file Excel thành công!")
   }, [data])
 
   return (

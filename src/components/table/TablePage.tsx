@@ -261,8 +261,6 @@ export function TablePage<T extends BaseTableItem>({
         return
       }
 
-      setToastMessage("Thao tác hoàn tất nhưng không có phản hồi cụ thể.")
-      setShowToast(true)
       setIsFormModalOpen(false)
     },
     [formMode, editingItem, onAdd, onEdit, setIsFormModalOpen],

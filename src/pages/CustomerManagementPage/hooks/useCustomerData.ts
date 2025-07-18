@@ -14,7 +14,7 @@ export function useCustomerData() {
       const customers = await customerService.getAllCustomers()
       setData(customers)
     } catch (error) {
-      console.error("Failed to fetch customer data:", error)
+      // Handle error silently or show user-friendly message
     } finally {
       setIsLoading(false)
     }
@@ -44,7 +44,6 @@ export function useCustomerData() {
         return { success: false, message: result?.message || "Thêm mới khách hàng thất bại!" }
       }
     } catch (error) {
-      console.error("Failed to add customer:", error)
       return { success: false, message: "Thêm mới khách hàng thất bại!" }
     }
   }, [handleRefresh])
@@ -64,7 +63,6 @@ export function useCustomerData() {
       }
     } catch (error) {
       setIsEditLoading(false)
-      console.error("Failed to edit customer:", error)
       return { success: false, message: "Cập nhật khách hàng thất bại!" }
     }
   }, [handleRefresh])
@@ -80,7 +78,6 @@ export function useCustomerData() {
         return { success: false, message: result.message || "Xóa khách hàng thất bại!" }
       }
     } catch (error) {
-      console.error("Failed to delete customer:", error)
       return { success: false, message: "Xóa khách hàng thất bại!" }
     }
   }, [handleRefresh])

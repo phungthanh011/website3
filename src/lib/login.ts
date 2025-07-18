@@ -24,7 +24,6 @@ export async function login(username: string, password: string, companyID: strin
     const data: LoginResponse = await res.json()
     return data.token || data.Token || MOCK_TOKEN
   } catch (err) {
-    console.error("Login failed, using mock token:", err)
     return MOCK_TOKEN
   }
 }

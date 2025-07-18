@@ -146,7 +146,6 @@ export default function ExcelImportModal({
           }
         }
       } catch (error) {
-        console.error("Error loading columns:", error)
         setAvailableColumns([])
       }
     },
@@ -175,8 +174,7 @@ export default function ExcelImportModal({
           loadColumnsFromSheet(wb, wb.SheetNames[0], headerRow)
         }
       } catch (error) {
-        console.error("Error reading Excel file:", error)
-        alert("Lỗi khi đọc file Excel. Vui lòng kiểm tra lại file.")
+        // Handle file reading error silently
       } finally {
         setIsLoading(false)
       }
@@ -299,7 +297,6 @@ export default function ExcelImportModal({
 
       return processedData
     } catch (error) {
-      console.error("Error loading data from Excel:", error)
       return []
     }
   }, [workbook, selectedSheet, headerRow])
@@ -398,7 +395,6 @@ export default function ExcelImportModal({
         const data = loadDataFromExcel()
 
         if (data.length === 0) {
-          alert("Không tìm thấy dữ liệu trong file Excel. Vui lòng kiểm tra lại dòng tiêu đề và dữ liệu.")
           setIsLoading(false)
           return
         }
@@ -410,8 +406,7 @@ export default function ExcelImportModal({
         setSelectedRows(results.filter((r) => r.isValid).map((r) => r.rowIndex))
         setCurrentStep(3)
       } catch (error) {
-        console.error("Error processing data:", error)
-        alert("Lỗi khi xử lý dữ liệu. Vui lòng kiểm tra lại file và cấu hình.")
+        // Handle processing error silently
       } finally {
         setIsLoading(false)
       }
@@ -467,16 +462,12 @@ export default function ExcelImportModal({
       .map((r) => r.data)
 
     if (selectedData.length === 0) {
-      alert("Không có dữ liệu hợp lệ nào được chọn!")
       return
     }
 
     onImport(selectedData, importMethod)
     resetState()
     onClose()
-    alert(
-      `Đã ${importMethod === "add" ? "thêm mới" : importMethod === "update" ? "cập nhật" : "ghi đè"} thành công ${selectedData.length} bản ghi!`,
-    )
   }, [validationResults, selectedRows, onImport, importMethod, resetState, onClose])
 
   const handleClose = useCallback(() => {

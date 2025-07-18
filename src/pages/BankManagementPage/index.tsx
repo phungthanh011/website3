@@ -47,7 +47,6 @@ export default function BankManagementPage() {
 
   const handleImport = useCallback(
     (rows: any[], method: "add" | "update" | "overwrite") => {
-      console.log("Import bank data:", rows, "Method:", method)
       if (method === "overwrite") {
         setData(
           rows.map((row, index) => ({
@@ -82,27 +81,23 @@ export default function BankManagementPage() {
   )
 
   const handlePrint = useCallback((lang: "vi" | "en" | "ko") => {
-    console.log("Print bank list in language:", lang)
+    // Print functionality handled by PrintModal
   }, [])
 
   // Update handlers to work with the form modal
   const handleAdd = useCallback((newItem: BankAccount) => {
-    console.log("Add new bank account:", newItem)
     setData((prev) => [...prev, newItem])
   }, [])
 
   const handleEdit = useCallback((updatedItem: BankAccount) => {
-    console.log("Edit bank account:", updatedItem)
     setData((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
   }, [])
 
   const handleDelete = useCallback((id: string) => {
-    console.log("Delete bank account:", id)
     setData((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
   const handleBulkDelete = useCallback((ids: string[]) => {
-    console.log("Bulk delete bank accounts:", ids)
     setData((prev) => prev.filter((item) => !ids.includes(item.id)))
   }, [])
 
@@ -114,7 +109,6 @@ export default function BankManagementPage() {
   const handleExport = useCallback(() => {
     // Sử dụng hàm tiện ích exportToExcel
     exportToExcel(data, bankManagementColumns, "ngan-hang.xlsx", "NganHang")
-    alert("Đã xuất dữ liệu ra file Excel thành công!")
   }, [data])
 
   return (

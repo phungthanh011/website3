@@ -5,8 +5,8 @@ import Header from './components/Header';
 import DashboardOverview from './components/DashboardOverview';
 import ModuleContent from './components/ModuleContent';
 import LoginPage from './components/LoginPage';
-
-
+import CostObjectPage from './pages/CostCenter';
+import BankManagementPage from './pages/BankManagementPage';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(true); // Đặt mặc định là true để test

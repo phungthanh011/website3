@@ -25,7 +25,6 @@ class CustomerService {
 
       return []
     } catch (error) {
-      console.error("Failed to fetch customers:", error)
       throw new Error("Không thể tải danh sách khách hàng")
     }
   }
@@ -60,7 +59,6 @@ class CustomerService {
         throw new Error(result.messages?.[0] || "Thêm khách hàng thất bại.")
       }
     } catch (error: any) {
-      console.error("Error adding customer:", error)
       return {
         success: false,
         message: error.message || "Đã xảy ra lỗi khi thêm khách hàng.",
@@ -102,7 +100,6 @@ class CustomerService {
         throw new Error(result.messages?.[0] || "Cập nhật khách hàng thất bại.")
       }
     } catch (error: any) {
-      console.error("Error updating customer:", error)
       return {
         success: false,
         message: error.message || "Đã xảy ra lỗi khi cập nhật khách hàng.",
@@ -121,7 +118,6 @@ class CustomerService {
         message: `Đã xóa khách hàng ${id} thành công`
       }
     } catch (error) {
-      console.error("Delete customer error:", error)
       return {
         success: false,
         message: "Xóa khách hàng thất bại!"
@@ -161,7 +157,6 @@ class CustomerService {
         throw new Error(result.messages?.[0] || "Xóa khách hàng thất bại.")
       }
     } catch (error: any) {
-      console.error("Error deleting customer:", error)
       return {
         success: false,
         message: error.message || "Đã xảy ra lỗi khi xóa khách hàng.",

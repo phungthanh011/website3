@@ -13,16 +13,15 @@ export default function CustomerManagementPage() {
   const { data, isLoading, handleRefresh, handleAdd, handleEdit, handleDelete } = useCustomerData()
 
   const handleImport = useCallback((rows: any[], method: "add" | "update" | "overwrite") => {
-    console.log("Import customer data:", rows, "Method:", method)
+    // Import functionality handled by ExcelImportModal
   }, [])
 
   const handlePrint = useCallback((lang: "vi" | "en" | "ko") => {
-    console.log("Print customer list in language:", lang)
+    // Print functionality handled by PrintModal
   }, [])
 
   const handleExport = useCallback(() => {
     exportToExcel(data, customerColumns, "danh-sach-khach-hang.xlsx", "KhachHang")
-    alert("Đã xuất dữ liệu khách hàng ra Excel thành công!")
   }, [data])
 
   return (

@@ -118,7 +118,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
   const handlePrintAll = useCallback(() => {
     // Đảm bảo có dữ liệu trước khi in
     if (!deferredData || deferredData.length === 0) {
-      alert("Không có dữ liệu để in!")
       return
     }
 
@@ -372,7 +371,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
     iframe.onload = () => {
       const doc = iframe.contentWindow?.document
       if (!doc) {
-        console.error("Không thể truy cập document của iframe")
         document.body.removeChild(iframe)
         return
       }
@@ -396,7 +394,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
             }
           }, 1000)
         } catch (error) {
-          console.error("Lỗi khi in:", error)
           if (document.body.contains(iframe)) {
             document.body.removeChild(iframe)
           }
@@ -406,7 +403,6 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
 
     // Xử lý lỗi nếu iframe không load được
     iframe.onerror = () => {
-      console.error("Lỗi khi tải iframe")
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe)
       }
@@ -417,7 +413,7 @@ export default function PrintModal({ isOpen, onClose, data, config, companyInfo 
   }, [deferredData, company, selectedLanguage, config, orientation])
 
   const handleDownloadPDF = useCallback(() => {
-    alert(`Đang tải xuống PDF bằng ${selectedLanguage.name}...`)
+    // PDF download functionality would be implemented here
   }, [selectedLanguage.name])
 
   // Debounced zoom handlers with startTransition
