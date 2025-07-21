@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, 
   Database, 
@@ -27,7 +27,6 @@ import {
   ChevronDown,
   Search
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
   activeMenu: string;
@@ -52,6 +51,8 @@ interface MenuItem {
 interface SubMenuItem {
   id: string;
   title: string;
+  icon?: string;
+  subItems?: SubMenuItem[];
 }
 
 const menuGroups: MenuGroup[] = [
@@ -122,7 +123,17 @@ const menuGroups: MenuGroup[] = [
         ]
       },
       { id: 'journal', title: 'Sổ Nhật Ký', icon: 'BookOpen' },
-      { id: 'cash', title: 'Tiền Mặt', icon: 'Banknote' },
+      { 
+        id: 'cash', 
+        title: 'Tiền Mặt', 
+        icon: 'Banknote',
+        subItems: [
+          { id: 'cash/receipt', title: 'Phiếu thu' },
+          { id: 'cash/payment', title: 'Phiếu chi' },
+          { id: 'cash/recalc-cash-rate', title: 'Tính lại tỷ giá xuất quỹ' },
+          { id: 'cash/cash-book', title: 'Sổ quỹ tiền mặt' }
+        ]
+      },
       { id: 'banking', title: 'Ngân Hàng', icon: 'Building2' }
     ]
   },
@@ -207,51 +218,30 @@ function findPathToNode(
   return null;
 }
 
-// Hàm tìm tất cả path đến các node chứa từ khóa và menu cha của chúng
-function findAllMatchingPaths(
+// Hàm tìm tất cả path đến các node chứa từ khóa (dạng mảng các path)
+function findAllPathsToMatchedNodes(
   nodeList: (MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] }))[],
   term: string,
   path: string[] = []
 ): string[][] {
-  const result: string[][] = [];
-  
+  let result: string[][] = [];
   for (const node of nodeList) {
     const currentPath = [...path, node.id];
     const nodeMatch = node.title.toLowerCase().includes(term.toLowerCase());
-    let hasMatchingChild = false;
-    
+    let childMatched = false;
     if (node.subItems) {
-      const childPaths = findAllMatchingPaths(node.subItems, term, currentPath);
+      const childPaths = findAllPathsToMatchedNodes(node.subItems, term, currentPath);
       if (childPaths.length > 0) {
-        result.push(...childPaths);
-        hasMatchingChild = true;
+        result = result.concat(childPaths);
+        childMatched = true;
       }
     }
-    
-    // Nếu node khớp hoặc có con khớp, thêm path này vào kết quả
-    if (nodeMatch || hasMatchingChild) {
+    if (nodeMatch || childMatched) {
+      // Nếu node khớp hoặc có con khớp, thêm path này
       result.push(currentPath);
     }
   }
   return result;
-}
-
-// Hàm kiểm tra xem một node có nên được hiển thị không (node hoặc con của nó match)
-function shouldShowNode(
-  node: MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] }),
-  term: string,
-  allMatchingPaths: string[][],
-  currentPath: string[]
-): boolean {
-  if (!term) return true;
-  
-  const nodeFullPath = [...currentPath, node.id];
-  
-  // Kiểm tra xem path này có trong danh sách matching paths không
-  return allMatchingPaths.some(matchingPath => 
-    matchingPath.length >= nodeFullPath.length &&
-    nodeFullPath.every((pathPart, index) => pathPart === matchingPath[index])
-  );
 }
 
 function SidebarMenuNode({
@@ -259,26 +249,19 @@ function SidebarMenuNode({
   level = 0,
   expandedPath,
   onMenuSelect,
-  location,
   setExpandedPath,
-  searchTerm,
-  allMatchingPaths,
-  currentPath,
+  isSearching = false,
 }: {
   node: MenuItem | (SubMenuItem & { subItems?: SubMenuItem[] });
   level?: number;
   expandedPath: string[];
   onMenuSelect: (id: string) => void;
-  location: ReturnType<typeof useLocation>;
   setExpandedPath: React.Dispatch<React.SetStateAction<string[]>>;
-  searchTerm: string;
-  allMatchingPaths: string[][];
-  currentPath: string[];
+  isSearching?: boolean;
 }) {
   const isMenuItem = (n: any): n is MenuItem => !!(n as MenuItem).icon;
   const hasChildren = !!node.subItems && node.subItems.length > 0;
-  const isExpanded = expandedPath[level] === node.id;
-  const nodeFullPath = [...currentPath, node.id];
+  const isExpanded = isSearching ? true : expandedPath[level] === node.id;
 
   // Determine if this node or any of its subItems is active
   const isActive = (() => {
@@ -301,6 +284,7 @@ function SidebarMenuNode({
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
     if (isExpanded) {
       setExpandedPath(expandedPath.slice(0, level)); // Đóng menu cha
     } else {
@@ -309,7 +293,7 @@ function SidebarMenuNode({
     }
   };
 
-  // Highlight search term in text
+  // Highlight searchTerm in text
   const highlightText = (text: string, term: string) => {
     if (!term) return text;
     const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -321,11 +305,6 @@ function SidebarMenuNode({
     );
   };
 
-  // Không hiển thị node nếu không match với search
-  if (!shouldShowNode(node, searchTerm, allMatchingPaths, currentPath)) {
-    return null;
-  }
-
   return (
     <div className="relative">
       {hasChildren && isExpanded && (
@@ -336,41 +315,53 @@ function SidebarMenuNode({
       )}
       <div className="relative flex items-center" style={{ paddingLeft: `${level * 24}px` }}>
         {level > 0 && (
-          <span
-            className="absolute left-0 top-1/2 -translate-y-1/2 border-t border-dashed border-gray-400 w-4 z-10"
+          <div 
+            className="absolute w-2 h-2 bg-red-500 rounded-full z-20"
             style={{
-              left: `${(level - 1) * 24 + 8}px`,
-              width: '16px',
-              height: '0px',
+              left: `${(level - 1) * 24 + 5}px`,
+              top: '50%',
+              transform: 'translateY(-50%)'
             }}
           />
         )}
         <button
           onClick={() => onMenuSelect(node.id)}
-          className={`relative z-10 w-full flex items-center justify-between px-3 py-2.5 text-left rounded-lg transition-all duration-200
-            ${
-              level === 0 && isActive
-                ? (hasChildren
-                    ? 'bg-red-50 text-red-700 border-l-3 border-red-600'
-                    : 'bg-red-50 text-red-700')
-                : isActive
-                  ? 'text-red-700 font-bold'
-                  : (hasChildren
-                      ? 'text-gray-700 hover:bg-gray-50'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')
-            }
-          `}
+          className={[
+            'relative z-10 w-full flex items-center justify-between px-3 py-2.5 text-left rounded-lg transition-all duration-200',
+            level === 0 && isActive && !isSearching
+              ? 'bg-red-600 text-white font-bold'
+              : isActive && !isSearching
+                ? 'text-red-700 font-bold'
+                : hasChildren
+                  ? 'text-gray-700 hover:bg-gray-50'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          ].join(' ')}
         >
           <div className="flex items-center space-x-3">
             {/* Always show icon for level 1 menu inside button, even if no sub menu */}
             {isMenuItem(node) && level === 0 && node.icon && (
-              <span className="flex-shrink-0 text-gray-400">{iconMap[node.icon]}</span>
+              <span className={isActive && !isSearching ? 'flex-shrink-0 text-white' : 'flex-shrink-0 text-gray-400'}>
+                {iconMap[node.icon]}
+              </span>
             )}
-            <span className={`text-sm ${level > 0 ? 'font-normal' : 'font-medium'} ${level > 0 && isActive ? 'text-red-700 font-bold' : ''}`}>
-              {highlightText(node.title, searchTerm)}
+            <span className={`text-sm ${level > 0 ? 'font-normal' : 'font-medium'}${level > 0 && isActive && !isSearching ? ' text-red-700 font-bold' : ''}`}>
+              <>{highlightText(
+                node.title,
+                (typeof window !== 'undefined' && window.document)
+                  ? (document.querySelector('input[placeholder="Tìm kiếm menu..."]') as HTMLInputElement)?.value || ''
+                  : ''
+              )}</>
             </span>
           </div>
-          {hasChildren && (
+          {hasChildren && !isSearching && (
+            <span
+              className={`transition-transform duration-200 cursor-pointer ${isExpanded ? 'rotate-180' : ''}`}
+              onClick={handleToggle}
+            >
+              <ChevronDown size={14} className={level === 0 && isActive && !isSearching ? 'text-white' : 'text-gray-400 hover:text-red-400'} />
+            </span>
+          )}
+          {hasChildren && isSearching && (
             <span
               className={`transition-transform duration-200 cursor-pointer ${isExpanded ? 'rotate-180' : ''}`}
               onClick={handleToggle}
@@ -389,11 +380,8 @@ function SidebarMenuNode({
               level={level + 1}
               expandedPath={expandedPath}
               onMenuSelect={onMenuSelect}
-              location={location}
               setExpandedPath={setExpandedPath}
-              searchTerm={searchTerm}
-              allMatchingPaths={allMatchingPaths}
-              currentPath={nodeFullPath}
+              isSearching={isSearching}
             />
           ))}
         </div>
@@ -412,7 +400,6 @@ export default function Sidebar({
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarHovered, setSidebarHovered] = useState(false);
   const [originalMenuState, setOriginalMenuState] = useState<{ expandedPath: string[]; activeMenu: string | null } | null>(null);
-  const location = useLocation();
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   // Lắng nghe Ctrl+K để focus vào ô tìm kiếm
@@ -431,48 +418,84 @@ export default function Sidebar({
     const path = findPathToNode(menuGroups.flatMap(g => g.items), menuId);
     if (path) setExpandedPath(path);
     onMenuSelect(menuId);
+    // Nếu đang search, cập nhật lại trạng thái activeMenu tạm thời
+    if (searchTerm && !originalMenuState) {
+      setOriginalMenuState({ expandedPath, activeMenu });
+    }
   };
 
-  // Tính toán tất cả matching paths cho search
-  const allMatchingPaths = useMemo(() => {
-    if (!searchTerm) return [];
-    return menuGroups.flatMap(group =>
-      findAllMatchingPaths(group.items, searchTerm, [group.id])
+
+  // Filter menu items based on search term, hỗ trợ cấp 3, chỉ show menu cha có con phù hợp
+  const filterMenuItems = (groups: MenuGroup[]) => {
+    if (!searchTerm) return groups; // Không filter nếu không search
+
+    // Lấy tất cả path đến các node khớp
+    const allPaths = groups.flatMap(group =>
+      findAllPathsToMatchedNodes(group.items, searchTerm, [group.id])
     );
-  }, [searchTerm]);
 
-  // Filter menu groups để chỉ hiển thị những group có item matching
-  const filteredMenuGroups = useMemo(() => {
-    if (!searchTerm) return menuGroups;
-    
-    return menuGroups.filter(group => {
-      // Kiểm tra xem group này có item nào matching không
-      return allMatchingPaths.some(path => path[0] === group.id);
-    });
-  }, [searchTerm, allMatchingPaths]);
+    // Lấy tất cả id cần show (menu cha và con)
+    const idsToShow = new Set<string>();
+    allPaths.forEach(path => path.forEach(id => idsToShow.add(id)));
 
-  // Quản lý trạng thái search và expandedPath
+    // Filter lại menu, chỉ giữ các node có id nằm trong idsToShow
+    return groups
+      .map(group => {
+        if (!idsToShow.has(group.id)) return null;
+        return {
+          ...group,
+          items: group.items
+            .filter(item => idsToShow.has(item.id))
+            .map(item => ({
+              ...item,
+              subItems: item.subItems
+                ? item.subItems
+                    .filter(sub => idsToShow.has(sub.id))
+                    .map(sub => ({
+                      ...sub,
+                      subItems: (sub as any).subItems
+                        ? (sub as any).subItems.filter((third: any) => idsToShow.has(third.id))
+                        : undefined,
+                    }))
+                : undefined,
+            })),
+        };
+      })
+      .filter(Boolean) as MenuGroup[];
+  };
+
+  const filteredMenuGroups = filterMenuItems(menuGroups);
+
+  // Lưu trạng thái menu gốc khi bắt đầu search, khôi phục khi xóa search
   useEffect(() => {
     if (searchTerm) {
-      // Lưu trạng thái ban đầu khi bắt đầu search
+      // Khi bắt đầu search, lưu trạng thái menu gốc nếu chưa lưu
       if (!originalMenuState) {
         setOriginalMenuState({ expandedPath, activeMenu });
       }
-      
-      // Lấy path đầu tiên từ matching paths để mở menu
-      if (allMatchingPaths.length > 0) {
-        setExpandedPath(allMatchingPaths[0]);
-      } else {
-        setExpandedPath([]);
+      // Khi search, mở tất cả menu có kết quả khớp
+      const allMatchedPaths: string[] = [];
+      for (const group of menuGroups) {
+        const paths = findAllPathsToMatchedNodes(group.items, searchTerm, [group.id]);
+        paths.forEach(path => {
+          // Thêm tất cả các node trong path vào danh sách expanded
+          path.forEach(nodeId => {
+            if (!allMatchedPaths.includes(nodeId)) {
+              allMatchedPaths.push(nodeId);
+            }
+          });
+        });
       }
+      // Set expanded path để hiển thị tất cả menu có kết quả
+      setExpandedPath(allMatchedPaths);
     } else {
-      // Khôi phục trạng thái ban đầu khi xóa search
+      // Khi xóa search, kiểm tra trạng thái menu
       if (originalMenuState) {
         setExpandedPath(originalMenuState.expandedPath);
         setOriginalMenuState(null);
       }
     }
-  }, [searchTerm, allMatchingPaths, expandedPath, activeMenu, originalMenuState]);
+  }, [searchTerm]);
 
   // Khi activeMenu thay đổi, luôn mở parent menu (chỉ khi không search)
   useEffect(() => {
@@ -539,7 +562,7 @@ export default function Sidebar({
         {/* Floating expanded sidebar overlay on hover */}
         {isSidebarHovered && (
           <div
-            className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 shadow-lg z-50 flex flex-col"
+            className="absolute top-7 bottom-0 left-2 border-l border-solid border-gray-400 z-0"
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
             style={{ pointerEvents: 'auto' }}
@@ -585,11 +608,8 @@ export default function Sidebar({
                           level={0}
                           expandedPath={expandedPath}
                           onMenuSelect={handleMenuSelect}
-                          location={location}
                           setExpandedPath={setExpandedPath}
-                          searchTerm={searchTerm}
-                          allMatchingPaths={allMatchingPaths}
-                          currentPath={[group.id]}
+                          isSearching={!!searchTerm}
                         />
                       ))}
                     </div>
@@ -644,8 +664,21 @@ export default function Sidebar({
             placeholder="Tìm kiếm menu..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+            className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
           />
+          {searchTerm && (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 focus:outline-none"
+              onClick={() => setSearchTerm("")}
+              tabIndex={-1}
+              aria-label="Xóa tìm kiếm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       
@@ -665,11 +698,8 @@ export default function Sidebar({
                     level={0}
                     expandedPath={expandedPath}
                     onMenuSelect={handleMenuSelect}
-                    location={location}
                     setExpandedPath={setExpandedPath}
-                    searchTerm={searchTerm}
-                    allMatchingPaths={allMatchingPaths}
-                    currentPath={[group.id]}
+                    isSearching={!!searchTerm}
                   />
                 ))}
               </div>
